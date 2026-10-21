@@ -19,6 +19,10 @@
   </header>
 
   <main class="app-wrap">
+    <div id="pass-bar" class="pass-bar hidden">
+      <label for="pass-select">Room Pass</label>
+      <select id="pass-select"></select>
+    </div>
     <div class="app">
       <div class="app-head">
         <span>My Room Pass</span>
@@ -30,15 +34,17 @@
 
       <!-- 1. License -->
       <section id="screen-license" class="panel hidden">
-        <p class="lead">Enter your Room Pass license key to set up your alerts, or to change ones you've already set.</p>
+        <p id="license-lead" class="lead">Enter your Room Pass license key to set up your alerts, or to change ones you've already set.</p>
         <div class="field">
           <label for="license-key">License key</label>
           <input id="license-key" type="text" placeholder="XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX" autocomplete="off" spellcheck="false" />
-          <p class="hint">From your Gumroad receipt email. One Room Pass covers one sailing. This device will remember it.</p>
+          <p class="hint">From your Gumroad receipt email. One Room Pass covers one sailing; booked several cruises? Add a Room Pass for each. This device will remember them.</p>
         </div>
         <p id="license-error" class="error-text hidden"></p>
         <button id="activate-btn" class="btn-primary">Continue</button>
         <p class="hint center">No Room Pass yet? <a href="buy.html">Get one</a></p>
+        <p class="center"><button id="remove-broken-btn" class="btn-link hidden">Remove this Room Pass from this device</button></p>
+        <p class="center"><button id="cancel-add-btn" class="btn-link hidden">Back to my Room Passes</button></p>
       </section>
 
       <!-- 2. Sailing -->
@@ -124,11 +130,11 @@
 
         <div class="app-foot">
           <span id="license-ending" class="hint"></span>
-          <button class="btn-link forget-license-btn">Forget my license on this device</button>
+          <button class="btn-link forget-license-btn">Remove this Room Pass from this device</button>
         </div>
       </section>
     </div>
-    <p class="hint center">Your alerts are saved with your license, not this browser: on another device, just enter your key again.</p>
+    <p class="hint center">Your alerts are saved with each Room Pass, not this browser: on another device, just enter your keys again.</p>
   </main>
 
   <template id="booked-row">

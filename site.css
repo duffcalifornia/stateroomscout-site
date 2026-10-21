@@ -132,6 +132,9 @@ a { color: var(--navy); }
 /* Alerts page ----------------------------------------------------------------------------------- */
 
 .app-wrap { max-width: 560px; margin: 32px auto 56px; padding: 0 16px; }
+.pass-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.pass-bar label { font-weight: 600; font-size: 13px; color: var(--navy); white-space: nowrap; }
+.pass-bar select { flex: 1; min-width: 0; padding: 9px 10px; border: 1px solid #c8cde0; border-radius: 6px; font: inherit; font-size: 16px; background: #fff; color: var(--ink); }
 .app { border: 1.5px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; font-size: 14px; }
 .app-head {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;

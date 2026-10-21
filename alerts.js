@@ -1,10 +1,12 @@
-// Stateroom Scout Room Pass alerts page: license -> sailing -> watches. The browser keeps only the
-// license key (localStorage); the sailing and alerts live on the server, filed under the key, and are
-// read back on every visit, so a new device only needs the key pasted again.
+// Stateroom Scout Room Pass alerts page: license -> sailing -> watches, for each Room Pass the
+// customer has (one per cruise). The browser keeps only the keys (localStorage, with a cached label
+// and topic for the switcher); the sailing and alerts live on the server, filed under each key, and
+// are read back on every visit, so a new device only needs the keys pasted again.
 
 import {
   FUNCTION_URL, MAX_ROOMS, SUPABASE_KEY, SUPABASE_URL, categoriesFromRooms, cleanRooms, formatDate,
   generateTopic, money, parseMoney, parsePercent, roomProblems, screenFor, undiscountedTotal, validTopic,
+  addPass, loadPasses, normalizeKey, removePass, sameKey, suggestedTopic, updatePass,
 } from "./lib.js";
 
 const $ = (id) => document.getElementById(id);
@@ -24,7 +26,8 @@ const store = {
   },
 };
 
-let license = null;   // { key }
+let passes = [];      // every Room Pass saved in this browser: [{ key, label, topic }]
+let license = null;   // the one being shown: { key }
 let status = null;    // scout_status from the server
 let roomIndex = new Map();
 let taxPerGuest = null;
@@ -69,13 +72,26 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 async function render() {
   show("loading", false);
+  show("fatal", false);
   const screen = screenFor(license, status);
-  for (const s of ["license", "sailing", "departed", "watches"]) show(`screen-${s}`, s === screen);
+  for (const sc of ["license", "sailing", "departed", "watches"]) show(`screen-${sc}`, sc === screen);
   const badge = $("sailing-badge");
   if (status?.sailing) {
     badge.textContent = `${status.sailing.ship_name.replace(/^Disney /, "")} · ${formatDate(status.sailing.sail_date)}`;
     show(badge);
   } else show(badge, false);
+
+  if (license) {
+    passes = updatePass(passes, license.key, status);
+    await savePasses();
+  }
+  renderPassBar();
+  const adding = screen === "license" && passes.length > 0;
+  $("license-lead").textContent = adding
+    ? "Enter the license key of another Room Pass, for another cruise you've booked."
+    : "Enter your Room Pass license key to set up your alerts, or to change ones you've already set.";
+  show("cancel-add-btn", adding);
+  show("remove-broken-btn", false);
 
   if (screen === "sailing") await renderSailing();
   if (screen === "watches") await renderWatches();
@@ -86,6 +102,74 @@ async function refresh() {
   await render();
 }
 
+// Room Passes saved in this browser
+
+async function savePasses() {
+  await store.set("passes", passes);
+  if (license) await store.set("activePass", license.key);
+  await store.remove("license");   // the single key older versions kept; it's in `passes` now
+}
+
+const ADD = "__add";
+function renderPassBar() {
+  const sel = $("pass-select");
+  sel.length = 0;
+  const labels = passes.map((p) => p.label ?? `Room Pass (...${p.key.slice(-4)})`);
+  // Two passes on one sailing (two families' rooms on the same cruise) would read the same.
+  passes.forEach((p, i) => {
+    const twin = labels.filter((l) => l === labels[i]).length > 1;
+    sel.add(new Option(twin ? `${labels[i]} (...${p.key.slice(-4)})` : labels[i], p.key));
+  });
+  sel.add(new Option("+ Add another Room Pass", ADD));
+  sel.value = license ? normalizeKey(license.key) : ADD;
+  show("pass-bar", passes.length > 0);
+}
+
+/** Shows another saved Room Pass; a key that stopped working (refunded) shows why on the license screen. */
+async function switchTo(key) {
+  license = { key };
+  localActive = key;
+  status = null;
+  watchesFor = null;
+  show("loading");
+  for (const sc of ["license", "sailing", "departed", "watches"]) show(`screen-${sc}`, false);
+  await store.set("activePass", key);
+  try {
+    await refresh();
+  } catch (e) {
+    $("license-key").value = key;
+    $("license-error").textContent = e.message;
+    show("license-error");
+    license = null;
+    status = null;
+    await render();
+    brokenKey = key;   // e.g. refunded: let them take it off the list
+    show("remove-broken-btn");
+    show("cancel-add-btn", passes.length > 1);
+  }
+}
+
+let brokenKey = null;
+async function removeBroken() {
+  passes = removePass(passes, brokenKey);
+  brokenKey = null;
+  await savePasses();
+  show("license-error", false);
+  $("license-key").value = "";
+  if (passes.length) return switchTo(passes[0].key);
+  await store.remove("activePass");
+  await render();
+}
+
+async function startAdding() {
+  license = null;
+  status = null;
+  $("license-key").value = "";
+  show("license-error", false);
+  await render();
+  $("license-key").focus();
+}
+
 // 1. License
 
 async function activate() {
@@ -93,11 +177,13 @@ async function activate() {
   const err = $("license-error");
   show(err, false);
   if (!key) { err.textContent = "Enter your license key."; show(err); return; }
+  if (passes.some((p) => sameKey(p.key, key))) return switchTo(passes.find((p) => sameKey(p.key, key)).key);
   $("activate-btn").disabled = true;
-  license = { key };
+  license = { key: normalizeKey(key) };
   try {
     status = await api("status");
-    await store.set("license", license);
+    passes = addPass(passes, license.key);
+    watchesFor = null;
     await render().catch(fail);
   } catch (e) {
     license = null;
@@ -109,10 +195,13 @@ async function activate() {
 }
 
 async function forgetLicense() {
-  await store.remove("license");
+  passes = removePass(passes, license?.key);
+  await savePasses();
+  $("license-key").value = "";
+  if (passes.length) return switchTo(passes[0].key);
   license = null;
   status = null;
-  $("license-key").value = "";
+  await store.remove("activePass");
   await render();
 }
 
@@ -186,8 +275,10 @@ async function renderWatches() {
   show("change-sailing-btn", status.resets_left > 0);
   $("license-ending").textContent = `License ...${license.key.slice(-4)}`;
 
-  if (watchesFor === status.voyage_id) return;
-  watchesFor = status.voyage_id;
+  // Refill the form only for a different pass or sailing, so a re-render doesn't wipe unsaved edits.
+  const formFor = `${normalizeKey(license.key)}|${status.voyage_id}`;
+  if (watchesFor === formFor) return;
+  watchesFor = formFor;
 
   const [rooms, taxes] = await Promise.all([
     rest(`rooms?select=room_number,category,name,max_occupancy&ship_code=eq.${s.ship_code}&order=room_number`),
@@ -199,7 +290,8 @@ async function renderWatches() {
 
   categories = categoriesFromRooms(rooms);
 
-  $("ntfy-topic").value = status.ntfy_topic ?? generateTopic();
+  // A family usually wants every cruise's alerts on the one phone topic, so offer the one they use.
+  $("ntfy-topic").value = status.ntfy_topic ?? suggestedTopic(passes, license.key) ?? generateTopic();
   $("room-list").replaceChildren();
   for (const r of status.rooms?.length ? status.rooms : [""]) addRoom(r);
 
@@ -397,6 +489,16 @@ async function changeSailing() {
 
 function wire() {
   $("activate-btn").addEventListener("click", activate);
+  $("pass-select").addEventListener("change", (e) => {
+    const v = e.target.value;
+    (v === ADD ? startAdding() : switchTo(v)).catch(fail);
+  });
+  $("remove-broken-btn").addEventListener("click", () => removeBroken().catch(fail));
+  $("cancel-add-btn").addEventListener("click", () => {
+    const usable = passes.filter((p) => !sameKey(p.key, brokenKey ?? ""));
+    const active = usable.find((p) => sameKey(p.key, localActive)) ?? usable[0];
+    if (active) switchTo(active.key).catch(fail);
+  });
   $("license-key").addEventListener("keydown", (e) => e.key === "Enter" && activate());
   for (const b of document.querySelectorAll(".forget-license-btn")) b.addEventListener("click", forgetLicense);
   $("ship").addEventListener("change", () => shipChanged().catch(fail));
@@ -424,22 +526,15 @@ function fail(e) {
   show("fatal");
 }
 
+let localActive = null;   // the pass shown before "Add another", for "Back to my Room Passes"
+
 async function init() {
   wire();
-  license = await store.get("license");
-  try {
-    await refresh();
-  } catch (e) {
-    // A key that stopped working (refunded) falls back to the license screen with the reason.
-    if (license) {
-      $("license-key").value = license.key;
-      $("license-error").textContent = e.message;
-      show("license-error");
-      license = null;
-      status = null;
-      await render();
-    } else fail(e);
-  }
+  passes = loadPasses(await store.get("passes"), await store.get("license"));
+  localActive = await store.get("activePass");
+  const active = passes.find((p) => sameKey(p.key, localActive)) ?? passes[0];
+  if (active) await switchTo(active.key);
+  else await render();
 }
 
 init().catch(fail);

@@ -104,3 +104,44 @@ export function screenFor(license, status) {
   if (!status?.voyage_id) return "sailing";
   return "watches";
 }
+
+// --- Room Passes saved in this browser ----------------------------------------------------------
+// A list of { key, label, topic }: one per Room Pass (people book several cruises at once). label
+// and topic are cached from the server so the switcher can name each pass without asking Gumroad
+// about every key on every visit.
+
+/** The saved list, upgrading the single { key } that earlier versions of the page stored. */
+export function loadPasses(saved, legacy) {
+  const list = Array.isArray(saved) ? saved.filter((p) => p && typeof p.key === "string" && p.key) : [];
+  if (legacy?.key && !list.some((p) => sameKey(p.key, legacy.key))) list.push({ key: legacy.key, label: null, topic: null });
+  return list;
+}
+
+/** Keys are compared the way the server reads them: no spaces, upper case. */
+export const sameKey = (a, b) => normalizeKey(a) === normalizeKey(b);
+export const normalizeKey = (k) => String(k ?? "").replace(/\s+/g, "").toUpperCase();
+
+/** Adds a key unless it's already there (then nothing changes). */
+export function addPass(list, key) {
+  return list.some((p) => sameKey(p.key, key)) ? list : [...list, { key: normalizeKey(key), label: null, topic: null }];
+}
+
+export const removePass = (list, key) => list.filter((p) => !sameKey(p.key, key));
+
+/** Caches what the server said about a pass: its label and ntfy topic. */
+export function updatePass(list, key, status) {
+  return list.map((p) => (sameKey(p.key, key) ? { ...p, label: passLabel(key, status), topic: status?.ntfy_topic ?? p.topic ?? null } : p));
+}
+
+/** "Destiny · Jan 21, 2027", or what state the pass is in when it has no sailing. */
+export function passLabel(key, status) {
+  const ending = `...${normalizeKey(key).slice(-4)}`;
+  if (status?.sailing) return `${status.sailing.ship_name.replace(/^Disney /, "")} · ${formatDate(status.sailing.sail_date)}`;
+  if (status?.departed) return `Departed sailing (${ending})`;
+  return `New Room Pass (${ending})`;
+}
+
+/** The ntfy topic to suggest for a pass without one: the one already used by another pass, if any. */
+export function suggestedTopic(list, key) {
+  return list.find((p) => !sameKey(p.key, key) && p.topic)?.topic ?? null;
+}
