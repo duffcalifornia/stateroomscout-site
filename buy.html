@@ -15,9 +15,8 @@
     <p id="msg">Opening checkout...</p>
   </main>
   <script>
-    // The Room Pass product on Gumroad. Empty until the product exists: the page then says sales
-    // open soon instead of sending people to a missing checkout.
-    const CHECKOUT = "";
+    // The Room Pass product on Gumroad. Leave it empty to show "sales open soon" instead of a checkout.
+    const CHECKOUT = "https://duffcalifornia.gumroad.com/l/lzgdto";
     const msg = document.getElementById("msg");
     if (CHECKOUT) {
       msg.innerHTML = `Opening checkout... <a href="${CHECKOUT}">click here if nothing happens</a>.`;
