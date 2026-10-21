@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Alerts - Stateroom Scout</title>
+  <meta name="description" content="Set up your Room Pass: stateroom alerts and price drop alerts for your Disney cruise." />
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="icons/icon48.png" />
+  <link rel="stylesheet" href="site.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a class="logo" href="./"><img src="icons/icon128.png" alt="" /> Stateroom Scout</a>
+    <nav>
+      <a class="nav-optional" href="./#how">How it works</a>
+      <a href="./#pricing">Room Pass</a>
+    </nav>
+  </header>
+
+  <main class="app-wrap">
+    <div class="app">
+      <div class="app-head">
+        <span>My Room Pass</span>
+        <span id="sailing-badge" class="badge hidden"></span>
+      </div>
+
+      <div id="loading" class="panel loading">Loading...</div>
+      <div id="fatal" class="notice error hidden"></div>
+
+      <!-- 1. License -->
+      <section id="screen-license" class="panel hidden">
+        <p class="lead">Enter your Room Pass license key to set up your alerts, or to change ones you've already set.</p>
+        <div class="field">
+          <label for="license-key">License key</label>
+          <input id="license-key" type="text" placeholder="XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX" autocomplete="off" spellcheck="false" />
+          <p class="hint">From your Gumroad receipt email. One Room Pass covers one sailing. This device will remember it.</p>
+        </div>
+        <p id="license-error" class="error-text hidden"></p>
+        <button id="activate-btn" class="btn-primary">Continue</button>
+        <p class="hint center">No Room Pass yet? <a href="buy.html">Get one</a></p>
+      </section>
+
+      <!-- 2. Sailing -->
+      <section id="screen-sailing" class="panel hidden">
+        <h2>Which cruise are you on?</h2>
+        <div class="field">
+          <label for="ship">Ship</label>
+          <select id="ship"><option value="">Choose a ship</option></select>
+        </div>
+        <div class="field">
+          <label for="sailing">Departure date</label>
+          <select id="sailing" disabled><option value="">Choose a ship first</option></select>
+        </div>
+        <div class="field">
+          <label for="guests">Guests in your stateroom</label>
+          <select id="guests">
+            <option value="1">1</option>
+            <option value="2" selected>2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+          </select>
+          <p class="hint">Disney shows different rooms and prices to different party sizes, so alerts match yours.</p>
+        </div>
+        <p id="reset-note" class="notice"></p>
+        <p id="sailing-error" class="error-text hidden"></p>
+        <button id="set-sailing-btn" class="btn-primary" disabled>Set my sailing</button>
+      </section>
+
+      <!-- Sailing departed -->
+      <section id="screen-departed" class="panel hidden">
+        <h2>This sailing has departed</h2>
+        <p class="lead">This Room Pass was for a sailing that has now sailed, so its alerts have ended. We hope it was a great trip.</p>
+        <button class="btn-secondary forget-license-btn">Use a different license</button>
+      </section>
+
+      <!-- 3. Watches -->
+      <section id="screen-watches" class="panel hidden">
+        <div class="card">
+          <div>
+            <div id="sailing-title" class="card-title"></div>
+            <div id="sailing-meta" class="card-meta"></div>
+          </div>
+          <button id="change-sailing-btn" class="btn-link">Change</button>
+        </div>
+        <div id="change-sailing-confirm" class="notice hidden">
+          <p id="change-sailing-text"></p>
+          <div class="row">
+            <button id="change-sailing-yes" class="btn-danger">Change my sailing</button>
+            <button id="change-sailing-no" class="btn-secondary">Keep it</button>
+          </div>
+        </div>
+
+        <h3>Notifications</h3>
+        <div class="field">
+          <label for="ntfy-topic">ntfy topic</label>
+          <div class="row">
+            <input id="ntfy-topic" type="text" autocomplete="off" spellcheck="false" />
+            <button id="generate-topic-btn" class="btn-secondary small" title="Make a new random topic">New</button>
+          </div>
+          <p class="hint">Install the free <a href="https://ntfy.sh" target="_blank" rel="noopener noreferrer">ntfy</a> app on your phone and subscribe to this exact topic. Anyone who knows the topic can read its alerts, so keep it hard to guess.</p>
+          <button id="test-ntfy-btn" class="btn-secondary small">Send a test notification</button>
+          <span id="test-ntfy-result" class="hint"></span>
+        </div>
+
+        <h3>Stateroom alerts</h3>
+        <p class="hint">Enter the staterooms you'd like. We'll alert you when one opens for <span class="party-text"></span>.</p>
+        <div id="room-list" class="room-list"></div>
+        <button id="add-room-btn" class="btn-link">+ Add another stateroom</button>
+
+        <h3>Price drop alerts</h3>
+        <label class="check"><input id="price-enabled" type="checkbox" /> Watch my booked category for price drops</label>
+        <p id="price-closed" class="notice hidden"></p>
+        <div id="price-fields" class="hidden">
+          <div class="field">
+            <label for="category">Stateroom category you booked</label>
+            <select id="category"><option value="">Choose a category</option></select>
+            <p class="hint">On your reservation, e.g. "Category 4B".</p>
+          </div>
+          <div class="field">
+            <label>Guests in your stateroom</label>
+            <div class="static"><span class="guests-text"></span> <span class="hint">(set with your sailing)</span></div>
+          </div>
+          <div class="field">
+            <label>Did you book with a discount, such as a placeholder reservation?</label>
+            <div class="row">
+              <label class="check"><input type="radio" name="discounted" value="no" checked /> No</label>
+              <label class="check"><input type="radio" name="discounted" value="yes" /> Yes</label>
+            </div>
+          </div>
+          <div id="discount-field" class="field hidden">
+            <label for="discount-pct">Discount percentage</label>
+            <div class="row narrow"><input id="discount-pct" type="text" inputmode="decimal" placeholder="10" /><span>%</span></div>
+            <p class="hint">If you're unsure what percentage you received, leave this blank. We'll then alert you only when the price falls below what you paid.</p>
+          </div>
+          <div class="field">
+            <label for="paid-total">Total you paid, including taxes</label>
+            <input id="paid-total" type="text" inputmode="decimal" placeholder="$0.00" />
+          </div>
+          <p id="price-preview" class="hint"></p>
+        </div>
+
+        <p id="save-error" class="error-text hidden"></p>
+        <p id="save-ok" class="ok-text hidden"></p>
+        <button id="save-btn" class="btn-primary">Save alerts</button>
+
+        <div class="app-foot">
+          <span id="license-ending" class="hint"></span>
+          <button class="btn-link forget-license-btn">Forget my license on this device</button>
+        </div>
+      </section>
+    </div>
+    <p class="hint center">Your alerts are saved with your license, not this browser: on another device, just enter your key again.</p>
+  </main>
+
+  <template id="room-row">
+    <div class="row room-row">
+      <input type="text" inputmode="numeric" placeholder="Stateroom number, e.g. 8574" />
+      <button class="btn-icon remove-room" title="Remove">&times;</button>
+    </div>
+  </template>
+
+  <footer class="site-footer">
+    <a href="./">Home</a> <a href="privacy.html">Privacy</a>
+    <p>Stateroom Scout is not affiliated with Disney Cruise Line.</p>
+  </footer>
+
+  <script type="module" src="alerts.js"></script>
+</body>
+</html>

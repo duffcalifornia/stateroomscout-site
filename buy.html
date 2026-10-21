@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Get a Room Pass - Stateroom Scout</title>
+  <link rel="icon" href="icons/icon48.png" />
+  <link rel="stylesheet" href="site.css" />
+</head>
+<body>
+  <header class="site-header">
+    <a class="logo" href="./"><img src="icons/icon128.png" alt="" /> Stateroom Scout</a>
+  </header>
+  <main class="prose" style="text-align: center">
+    <p id="msg">Opening checkout...</p>
+  </main>
+  <script>
+    // The Room Pass product on Gumroad. Empty until the product exists: the page then says sales
+    // open soon instead of sending people to a missing checkout.
+    const CHECKOUT = "";
+    const msg = document.getElementById("msg");
+    if (CHECKOUT) {
+      msg.innerHTML = `Opening checkout... <a href="${CHECKOUT}">click here if nothing happens</a>.`;
+      location.replace(CHECKOUT);
+    } else {
+      msg.innerHTML = `Room Pass sales open soon. <a href="./">Back to Stateroom Scout</a>`;
+    }
+  </script>
+</body>
+</html>
