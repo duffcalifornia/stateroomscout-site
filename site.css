@@ -93,6 +93,17 @@ a { color: var(--navy); }
 .feature h3 { font-size: 17px; color: var(--navy); margin-bottom: 8px; }
 .feature p { font-size: 14px; color: #555; }
 
+.price-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; max-width: 880px; margin: 0 auto; align-items: stretch; }
+.price-cards .price-card { display: flex; flex-direction: column; }
+.price-cards .price-card ul { flex: 1; }
+.price-cards .price-card { position: relative; }
+.price-tag {
+  position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%);
+  background: var(--navy); color: #fff; font-size: 12px; font-weight: 700;
+  padding: 4px 12px; border-radius: 999px; letter-spacing: 0.02em; white-space: nowrap;
+}
+.price-was { font-size: 22px; font-weight: 600; color: #999; text-decoration: line-through; margin-right: 6px; vertical-align: middle; }
+.hero-note { margin-top: 18px !important; margin-bottom: 0 !important; font-size: 14px !important; color: var(--muted) !important; }
 .price-card {
   max-width: 420px; margin: 0 auto; text-align: center;
   border: 2px solid var(--navy); border-radius: 12px; padding: 32px 28px; background: #fff;
