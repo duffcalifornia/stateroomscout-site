@@ -28,6 +28,8 @@ let license = null;   // { key }
 let status = null;    // scout_status from the server
 let roomIndex = new Map();
 let taxPerGuest = null;
+let categories = [];   // [{ code, label }] for the sailing's ship
+const MAX_BOOKED = 4;
 
 // --- server calls --------------------------------------------------------------------------------
 
@@ -180,7 +182,6 @@ async function renderWatches() {
   $("sailing-title").textContent = `${s.ship_name}, ${formatDate(s.sail_date)}`;
   $("sailing-meta").textContent = `${s.name} (${status.voyage_id}) · ${party}`;
   for (const el of document.querySelectorAll(".party-text")) el.textContent = `a party of ${guests}`;
-  for (const el of document.querySelectorAll(".guests-text")) el.textContent = String(guests);
   $("change-sailing-btn").textContent = status.resets_left > 0 ? "Change" : "";
   show("change-sailing-btn", status.resets_left > 0);
   $("license-ending").textContent = `License ...${license.key.slice(-4)}`;
@@ -196,15 +197,13 @@ async function renderWatches() {
   roomIndex = new Map(rooms.map((r) => [r.room_number, r]));
   taxPerGuest = taxes[0] ? Number(taxes[0].tax_per_guest) : null;
 
-  const cat = $("category");
-  cat.length = 1;
-  for (const c of categoriesFromRooms(rooms)) cat.add(new Option(c.label, c.code));
+  categories = categoriesFromRooms(rooms);
 
   $("ntfy-topic").value = status.ntfy_topic ?? generateTopic();
   $("room-list").replaceChildren();
   for (const r of status.rooms?.length ? status.rooms : [""]) addRoom(r);
 
-  const p = status.price;
+  const booked = status.prices ?? (status.price ? [status.price] : []);
   const finalPayment = s.final_payment_date;
   const closed = finalPayment && finalPayment <= today();
   $("price-closed").textContent = closed
@@ -212,14 +211,9 @@ async function renderWatches() {
     : `Price alerts run until final payment on ${formatDate(finalPayment)}; after that Disney won't reprice a booking.`;
   show("price-closed", true);
   $("price-enabled").disabled = !!closed;
-  $("price-enabled").checked = !!p && !closed;
-  if (p) {
-    cat.value = p.category;
-    $("paid-total").value = Number(p.paid_total).toFixed(2);
-    const discounted = p.discount_pct !== null && p.discount_pct !== undefined;
-    document.querySelector(`input[name="discounted"][value="${discounted ? "yes" : "no"}"]`).checked = true;
-    $("discount-pct").value = discounted ? String(Number(p.discount_pct)) : "";
-  }
+  $("price-enabled").checked = booked.length > 0 && !closed;
+  $("booked-list").replaceChildren();
+  for (const b of booked) addBooked(b);
   priceToggled();
 }
 
@@ -238,26 +232,78 @@ function addRoom(value = "") {
   return input;
 }
 
-function priceToggled() {
-  show("price-fields", $("price-enabled").checked);
-  show("discount-field", document.querySelector('input[name="discounted"]:checked').value === "yes");
-  updatePreview();
+// Price drop alerts: one entry per booked stateroom, each with its own category, guests and price.
+
+let bookedSeq = 0;
+function addBooked(b = null) {
+  const list = $("booked-list");
+  if (list.children.length >= MAX_BOOKED) return null;
+  const el = $("booked-row").content.firstElementChild.cloneNode(true);
+  const radioName = `discounted-${++bookedSeq}`;
+  for (const r of el.querySelectorAll('input[type="radio"]')) r.name = radioName;
+  const cat = el.querySelector(".b-category");
+  for (const c of categories) cat.add(new Option(c.label, c.code));
+  el.querySelector(".b-guests").value = String(b?.guests ?? status.guests);
+  if (b) {
+    cat.value = b.category;
+    el.querySelector(".b-paid").value = Number(b.paid_total).toFixed(2);
+    const discounted = b.discount_pct !== null && b.discount_pct !== undefined;
+    el.querySelector(discounted ? ".b-disc-yes" : ".b-disc-no").checked = true;
+    el.querySelector(".b-pct").value = discounted ? String(Number(b.discount_pct)) : "";
+  }
+  const refresh = () => updateBooked(el);
+  for (const r of el.querySelectorAll('input[type="radio"]')) r.addEventListener("change", refresh);
+  for (const i of el.querySelectorAll(".b-paid, .b-pct")) i.addEventListener("input", refresh);
+  el.querySelector(".b-guests").addEventListener("change", refresh);
+  el.querySelector(".remove-booked").addEventListener("click", () => {
+    el.remove();
+    if (!list.children.length) $("price-enabled").checked = false;
+    priceToggled();
+  });
+  list.append(el);
+  priceToggled();
+  return el;
 }
 
-function updatePreview() {
-  const el = $("price-preview");
-  const paid = parseMoney($("paid-total").value);
-  const discounted = document.querySelector('input[name="discounted"]:checked').value === "yes";
-  const pct = discounted ? parsePercent($("discount-pct").value) : null;
-  if (!paid || Number.isNaN(pct)) { el.textContent = ""; return; }
-  if (pct === null) {
-    el.textContent = `We'll alert you when this category is on sale for less than ${money(paid)} for ${status.guests}.`;
+function priceToggled() {
+  const on = $("price-enabled").checked;
+  if (on && !$("booked-list").children.length) addBooked();
+  show("price-fields", on);
+  const entries = [...$("booked-list").children];
+  entries.forEach((el, i) => {
+    el.querySelector(".booked-title").textContent = entries.length > 1 ? `Booked stateroom ${i + 1}` : "Booked stateroom";
+    el.querySelector(".remove-booked").classList.toggle("hidden", entries.length === 1);
+    updateBooked(el);
+  });
+  show("add-booked-btn", entries.length < MAX_BOOKED);
+}
+
+/** Reads one booked-stateroom entry: { category, guests, paid, pct } (pct NaN when unreadable). */
+function readBooked(el) {
+  const discounted = el.querySelector(".b-disc-yes").checked;
+  return {
+    category: el.querySelector(".b-category").value,
+    guests: Number(el.querySelector(".b-guests").value),
+    paid: parseMoney(el.querySelector(".b-paid").value),
+    pct: discounted ? parsePercent(el.querySelector(".b-pct").value) : null,
+    discounted,
+  };
+}
+
+function updateBooked(el) {
+  const b = readBooked(el);
+  show(el.querySelector(".b-discount-field"), b.discounted);
+  const out = el.querySelector(".b-preview");
+  if (!b.paid || Number.isNaN(b.pct)) { out.textContent = ""; return; }
+  const party = `${b.guests} guest${b.guests === 1 ? "" : "s"}`;
+  if (b.pct === null) {
+    out.textContent = `We'll alert you when this category is on sale for less than ${money(b.paid)} for ${party}.`;
     return;
   }
-  const full = undiscountedTotal(paid, pct, taxPerGuest, status.guests);
-  el.textContent = full === null
-    ? `We'll work out your price before the ${pct}% discount (taxes aren't discounted) once we've checked this sailing's taxes, and alert you when the price drops below it.`
-    : `Before your ${pct}% discount that's ${money(full)} (taxes aren't discounted). We'll alert you when this category is on sale for less.`;
+  const full = undiscountedTotal(b.paid, b.pct, taxPerGuest, b.guests);
+  out.textContent = full === null
+    ? `We'll work out your price before the ${b.pct}% discount (taxes aren't discounted) once we've checked this sailing's taxes, and alert you when the price drops below it.`
+    : `Before your ${b.pct}% discount that's ${money(full)} for ${party} (taxes aren't discounted). We'll alert you when this category is on sale for less.`;
 }
 
 async function save() {
@@ -276,17 +322,19 @@ async function save() {
   for (const i of inputs) i.classList.toggle("invalid", roomIssues.some((p) => p.includes(i.value.trim()) && i.value.trim()));
   problems.push(...roomIssues);
 
-  let price = null;
+  const prices = [];
   if ($("price-enabled").checked) {
-    const paid = parseMoney($("paid-total").value);
-    const discounted = document.querySelector('input[name="discounted"]:checked').value === "yes";
-    const pct = discounted ? parsePercent($("discount-pct").value) : null;
-    if (!$("category").value) problems.push("Choose the stateroom category you booked.");
-    if (!paid) problems.push("Enter the total you paid, including taxes.");
-    if (Number.isNaN(pct)) problems.push("The discount should be a percentage between 0 and 100, or left blank.");
-    price = { category: $("category").value, paid_total: paid, discount_pct: pct };
+    const entries = [...$("booked-list").children];
+    entries.forEach((el, i) => {
+      const b = readBooked(el);
+      const which = entries.length > 1 ? ` for booked stateroom ${i + 1}` : "";
+      if (!b.category) problems.push(`Choose the category you booked${which}.`);
+      if (!b.paid) problems.push(`Enter the total you paid, including taxes${which}.`);
+      if (Number.isNaN(b.pct)) problems.push(`The discount should be a percentage between 0 and 100, or left blank${which}.`);
+      prices.push({ category: b.category, guests: b.guests, paid_total: b.paid, discount_pct: b.pct });
+    });
   }
-  if (!rooms.length && !price) problems.push("Add at least one stateroom, or turn on price drop alerts.");
+  if (!rooms.length && !prices.length) problems.push("Add at least one stateroom, or turn on price drop alerts.");
 
   if (problems.length) {
     err.textContent = problems.join(" ");
@@ -295,7 +343,7 @@ async function save() {
   }
   $("save-btn").disabled = true;
   try {
-    status = await api("save", { ntfy_topic: topic, rooms, price });
+    status = await api("save", { ntfy_topic: topic, rooms, prices });
     watchesFor = null;
     await render().catch(fail);
     ok.textContent = "Saved. We'll send alerts to your ntfy topic.";
@@ -361,8 +409,7 @@ function wire() {
   $("set-sailing-btn").addEventListener("click", setSailing);
   $("add-room-btn").addEventListener("click", () => addRoom()?.focus());
   $("price-enabled").addEventListener("change", priceToggled);
-  for (const r of document.querySelectorAll('input[name="discounted"]')) r.addEventListener("change", priceToggled);
-  for (const id of ["paid-total", "discount-pct"]) $(id).addEventListener("input", updatePreview);
+  $("add-booked-btn").addEventListener("click", () => addBooked()?.querySelector(".b-category").focus());
   $("generate-topic-btn").addEventListener("click", () => { $("ntfy-topic").value = generateTopic(); });
   $("test-ntfy-btn").addEventListener("click", testNtfy);
   $("save-btn").addEventListener("click", save);

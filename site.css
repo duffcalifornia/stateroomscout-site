@@ -182,6 +182,10 @@ a { color: var(--navy); }
 .card-meta { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
 
 .room-list { display: flex; flex-direction: column; gap: 8px; margin: 8px 0; }
+.booked-list { display: flex; flex-direction: column; gap: 10px; margin: 8px 0; }
+.booked { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 2px; background: var(--soft); min-width: 0; }
+.booked-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.booked-title { font-weight: 600; font-size: 13px; color: var(--navy); padding: 0; }
 .room-row input.invalid { border-color: var(--red); }
 
 .app button { font: inherit; cursor: pointer; }

@@ -110,35 +110,12 @@
         <button id="add-room-btn" class="btn-link">+ Add another stateroom</button>
 
         <h3>Price drop alerts</h3>
-        <label class="check"><input id="price-enabled" type="checkbox" /> Watch my booked category for price drops</label>
+        <label class="check"><input id="price-enabled" type="checkbox" /> Watch what I paid for my booked staterooms</label>
         <p id="price-closed" class="notice hidden"></p>
         <div id="price-fields" class="hidden">
-          <div class="field">
-            <label for="category">Stateroom category you booked</label>
-            <select id="category"><option value="">Choose a category</option></select>
-            <p class="hint">On your reservation, e.g. "Category 4B".</p>
-          </div>
-          <div class="field">
-            <label>Guests in your stateroom</label>
-            <div class="static"><span class="guests-text"></span> <span class="hint">(set with your sailing)</span></div>
-          </div>
-          <div class="field">
-            <label>Did you book with a discount, such as a placeholder reservation?</label>
-            <div class="row">
-              <label class="check"><input type="radio" name="discounted" value="no" checked /> No</label>
-              <label class="check"><input type="radio" name="discounted" value="yes" /> Yes</label>
-            </div>
-          </div>
-          <div id="discount-field" class="field hidden">
-            <label for="discount-pct">Discount percentage</label>
-            <div class="row narrow"><input id="discount-pct" type="text" inputmode="decimal" placeholder="10" /><span>%</span></div>
-            <p class="hint">If you're unsure what percentage you received, leave this blank. We'll then alert you only when the price falls below what you paid.</p>
-          </div>
-          <div class="field">
-            <label for="paid-total">Total you paid, including taxes</label>
-            <input id="paid-total" type="text" inputmode="decimal" placeholder="$0.00" />
-          </div>
-          <p id="price-preview" class="hint"></p>
+          <p class="hint">Add each stateroom you've booked on this sailing. We'll alert you if Disney's price for its category and party drops below what you paid.</p>
+          <div id="booked-list" class="booked-list"></div>
+          <button id="add-booked-btn" class="btn-link">+ Add another booked stateroom</button>
         </div>
 
         <p id="save-error" class="error-text hidden"></p>
@@ -153,6 +130,44 @@
     </div>
     <p class="hint center">Your alerts are saved with your license, not this browser: on another device, just enter your key again.</p>
   </main>
+
+  <template id="booked-row">
+    <fieldset class="booked">
+      <div class="booked-head">
+        <legend class="booked-title"></legend>
+        <button class="btn-link remove-booked">Remove</button>
+      </div>
+      <div class="field">
+        <label>Category you booked</label>
+        <select class="b-category"><option value="">Choose a category</option></select>
+        <p class="hint">On your reservation, e.g. "Category 4B".</p>
+      </div>
+      <div class="field">
+        <label>Guests in this stateroom</label>
+        <select class="b-guests">
+          <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+          <option value="4">4</option><option value="5">5</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Did you book it with a discount, such as a placeholder reservation?</label>
+        <div class="row">
+          <label class="check"><input type="radio" class="b-disc-no" value="no" checked /> No</label>
+          <label class="check"><input type="radio" class="b-disc-yes" value="yes" /> Yes</label>
+        </div>
+      </div>
+      <div class="field b-discount-field hidden">
+        <label>Discount percentage</label>
+        <div class="row narrow"><input class="b-pct" type="text" inputmode="decimal" placeholder="10" /><span>%</span></div>
+        <p class="hint">If you're unsure what percentage you received, leave this blank. We'll then alert you only when the price falls below what you paid.</p>
+      </div>
+      <div class="field">
+        <label>Total you paid for this stateroom, including taxes</label>
+        <input class="b-paid" type="text" inputmode="decimal" placeholder="$0.00" />
+      </div>
+      <p class="hint b-preview"></p>
+    </fieldset>
+  </template>
 
   <template id="room-row">
     <div class="row room-row">
